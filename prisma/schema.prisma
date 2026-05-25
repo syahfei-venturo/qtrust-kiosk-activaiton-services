@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String   @default("kiosk")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model HardwareActivation {
+  id           String   @id @default(uuid())
+  hardwareId   String   @unique @map("hardware_id")
+  activationId String?  @map("activation_id")
+  status       String   @default("Pending")
+  deviceName   String?  @map("device_name")
+  groupName    String?  @map("group_name")
+  groupId      Int?     @map("group_id")
+  dealerName   String?  @map("dealer_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("hardware_activations")
+}
+
+model TakePicture {
+  id         String   @id @default(uuid())
+  hardwareId String   @map("hardware_id")
+  status     Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([hardwareId, createdAt(sort: Desc)])
+  @@map("take_pictures")
+}
