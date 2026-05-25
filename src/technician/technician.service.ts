@@ -2,6 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { TakePictureDto } from './dto/take-picture.dto';
+import {
+  TakePictureResponse,
+  serializeTakePicture,
+} from '../common/serializers/take-picture.serializer';
 
 @Injectable()
 export class TechnicianService {
@@ -10,7 +14,10 @@ export class TechnicianService {
     private readonly redis: RedisService,
   ) {}
 
-  async triggerTakePicture(hardwareId: string, dto: TakePictureDto) {
+  async triggerTakePicture(
+    hardwareId: string,
+    dto: TakePictureDto,
+  ): Promise<TakePictureResponse> {
     const activation = await this.prisma.hardwareActivation.findUnique({
       where: { hardwareId },
     });
@@ -23,6 +30,7 @@ export class TechnicianService {
       data: {
         hardwareId,
         status: dto.status,
+        message: dto.message,
       },
     });
 
@@ -30,18 +38,10 @@ export class TechnicianService {
     await this.redis.setChannelState(channel, takePicture);
     await this.redis.publish(channel, takePicture);
 
-    return {
-      statusCode: 200,
-      message: 'OK',
-      data: {
-        hardware_id: takePicture.hardwareId,
-        status: takePicture.status,
-        created_at: takePicture.createdAt.toISOString(),
-      },
-    };
+    return serializeTakePicture(takePicture);
   }
 
-  async getTakePictureStatus(hardwareId: string) {
+  async getTakePictureStatus(hardwareId: string): Promise<TakePictureResponse> {
     const takePicture = await this.prisma.takePicture.findFirst({
       where: { hardwareId },
       orderBy: { createdAt: 'desc' },
@@ -51,13 +51,6 @@ export class TechnicianService {
       throw new NotFoundException(`No take_picture record for ${hardwareId}`);
     }
 
-    return {
-      statusCode: 200,
-      data: {
-        hardware_id: takePicture.hardwareId,
-        status: takePicture.status,
-        updated_at: takePicture.updatedAt.toISOString(),
-      },
-    };
+    return serializeTakePicture(takePicture);
   }
 }

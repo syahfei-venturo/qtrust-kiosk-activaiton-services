@@ -5,6 +5,31 @@ import { RedisService } from '../redis/redis.service';
 import { NotFoundException } from '@nestjs/common';
 import { HardwareActivation, TakePicture } from '@prisma/client';
 
+const mockActivation: HardwareActivation = {
+  id: 'id-001',
+  hardwareId: 'KIOSK-001',
+  activationId: 'ACT-001',
+  status: 'Activated',
+  deviceName: 'Kiosk 001',
+  groupName: 'Group 1',
+  groupId: 1,
+  dealerName: 'Dealer 1',
+  qrcode: null,
+  serialNumber: null,
+  loginDate: null,
+  defaultContentType: null,
+  defaultContentUrl: null,
+  linkUrl: null,
+  location: null,
+  region: null,
+  kdDealer: null,
+  lat: null,
+  lng: null,
+  spesification: null,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  updatedAt: new Date('2026-01-01T00:00:00Z'),
+};
+
 describe('TechnicianService', () => {
   let service: TechnicianService;
   let prisma: {
@@ -39,34 +64,27 @@ describe('TechnicianService', () => {
 
   describe('triggerTakePicture', () => {
     it('should create record and broadcast', async () => {
-      const activation: HardwareActivation = {
-        id: 'id-001',
-        hardwareId: 'KIOSK-001',
-        activationId: 'ACT-001',
-        status: 'Activated',
-        deviceName: 'Kiosk 001',
-        groupName: 'Group 1',
-        groupId: 1,
-        dealerName: 'Dealer 1',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      prisma.hardwareActivation.findUnique.mockResolvedValue(activation);
+      prisma.hardwareActivation.findUnique.mockResolvedValue(mockActivation);
 
       const takePicture: TakePicture = {
         id: 'TP-001',
         hardwareId: 'KIOSK-001',
         status: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        message: 'Take photo now',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
       };
       prisma.takePicture.create.mockResolvedValue(takePicture);
 
-      const result = await service.triggerTakePicture('KIOSK-001', { status: 1 });
+      const result = await service.triggerTakePicture('KIOSK-001', {
+        status: 1,
+        message: 'Take photo now',
+      });
 
-      expect(result.statusCode).toBe(200);
-      expect(result.data.hardware_id).toBe('KIOSK-001');
-      expect(result.data.status).toBe(1);
+      expect(result.hardware_id).toBe('KIOSK-001');
+      expect(result.status).toBe(1);
+      expect(result.message).toBe('Take photo now');
+      expect(result.created_at).toBe('2026-01-01T00:00:00.000Z');
       expect(redis.setChannelState).toHaveBeenCalledWith('take_picture.KIOSK-001', takePicture);
       expect(redis.publish).toHaveBeenCalledWith('take_picture.KIOSK-001', takePicture);
     });
@@ -81,21 +99,23 @@ describe('TechnicianService', () => {
   });
 
   describe('getTakePictureStatus', () => {
-    it('should return latest record', async () => {
+    it('should return latest record in snake_case', async () => {
       const takePicture: TakePicture = {
         id: 'TP-001',
         hardwareId: 'KIOSK-001',
         status: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        message: null,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
       };
       prisma.takePicture.findFirst.mockResolvedValue(takePicture);
 
       const result = await service.getTakePictureStatus('KIOSK-001');
 
-      expect(result.statusCode).toBe(200);
-      expect(result.data.hardware_id).toBe('KIOSK-001');
-      expect(result.data.status).toBe(1);
+      expect(result.hardware_id).toBe('KIOSK-001');
+      expect(result.status).toBe(1);
+      expect(result.message).toBeNull();
+      expect(result.created_at).toBe('2026-01-01T00:00:00.000Z');
       expect(prisma.takePicture.findFirst).toHaveBeenCalledWith({
         where: { hardwareId: 'KIOSK-001' },
         orderBy: { createdAt: 'desc' },

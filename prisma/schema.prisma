@@ -10,8 +10,10 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  name      String?
   password  String
   role      String   @default("kiosk")
+  lastLogin DateTime? @map("last_login")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -19,16 +21,28 @@ model User {
 }
 
 model HardwareActivation {
-  id           String   @id @default(uuid())
-  hardwareId   String   @unique @map("hardware_id")
-  activationId String?  @map("activation_id")
-  status       String   @default("Pending")
-  deviceName   String?  @map("device_name")
-  groupName    String?  @map("group_name")
-  groupId      Int?     @map("group_id")
-  dealerName   String?  @map("dealer_name")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(uuid())
+  hardwareId        String   @unique @map("hardware_id")
+  activationId      String?  @map("activation_id")
+  status            String   @default("Pending")
+  deviceName        String?  @map("device_name")
+  groupName         String?  @map("group_name")
+  groupId           Int?     @map("group_id")
+  dealerName        String?  @map("dealer_name")
+  qrcode            String?
+  serialNumber      String?  @map("serial_number")
+  loginDate         String?  @map("login_date")
+  defaultContentType String? @map("default_content_type")
+  defaultContentUrl String?  @map("default_content_url")
+  linkUrl           String?  @map("link_url")
+  location          String?
+  region            String?
+  kdDealer          String?  @map("kd_dealer")
+  lat               Float?
+  lng               Float?
+  spesification     Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("hardware_activations")
 }
@@ -37,6 +51,7 @@ model TakePicture {
   id         String   @id @default(uuid())
   hardwareId String   @map("hardware_id")
   status     Int      @default(0)
+  message    String?
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

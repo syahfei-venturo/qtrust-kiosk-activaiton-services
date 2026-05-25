@@ -16,6 +16,9 @@ import { SocketWithUser } from '../common/interfaces/socket-with-user.interface'
 import { KioskService } from './kiosk.service';
 import { RedisService } from '../redis/redis.service';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { serializeActivation } from '../common/serializers/activation.serializer';
+import { serializeTakePicture } from '../common/serializers/take-picture.serializer';
+import { HardwareActivation, TakePicture } from '@prisma/client';
 
 @WebSocketGateway({
   namespace: '/kiosk',
@@ -68,7 +71,17 @@ export class KioskGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   ) {
     const { channel } = dto;
     client.join(channel);
-    const data = await this.kioskService.getChannelData(channel);
+    const raw = await this.kioskService.getChannelData(channel);
+
+    if (!raw) {
+      return { data: null };
+    }
+
+    // Serialize to snake_case based on channel type
+    const data = channel.startsWith('activation.')
+      ? serializeActivation(raw as HardwareActivation)
+      : serializeTakePicture(raw as TakePicture);
+
     return { data };
   }
 

@@ -5,6 +5,40 @@ import { RedisService } from '../redis/redis.service';
 import { BadRequestException } from '@nestjs/common';
 import { HardwareActivation, TakePicture } from '@prisma/client';
 
+const mockActivation: HardwareActivation = {
+  id: 'id-001',
+  hardwareId: 'KIOSK-001',
+  activationId: 'ACT-001',
+  status: 'Activated',
+  deviceName: 'Kiosk 001',
+  groupName: 'Group 1',
+  groupId: 1,
+  dealerName: 'Dealer 1',
+  qrcode: null,
+  serialNumber: null,
+  loginDate: null,
+  defaultContentType: null,
+  defaultContentUrl: null,
+  linkUrl: null,
+  location: null,
+  region: null,
+  kdDealer: null,
+  lat: null,
+  lng: null,
+  spesification: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+const mockTakePicture: TakePicture = {
+  id: 'TP-001',
+  hardwareId: 'KIOSK-001',
+  status: 1,
+  message: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 describe('KioskService', () => {
   let service: KioskService;
   let prisma: {
@@ -50,48 +84,29 @@ describe('KioskService', () => {
 
     it('should fall back to DB when cache miss (activation)', async () => {
       redis.getChannelState.mockResolvedValue(null);
-      const activation: HardwareActivation = {
-        id: 'id-001',
-        hardwareId: 'KIOSK-001',
-        activationId: 'ACT-001',
-        status: 'Activated',
-        deviceName: 'Kiosk 001',
-        groupName: 'Group 1',
-        groupId: 1,
-        dealerName: 'Dealer 1',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      prisma.hardwareActivation.findUnique.mockResolvedValue(activation);
+      prisma.hardwareActivation.findUnique.mockResolvedValue(mockActivation);
 
       const result = await service.getChannelData('activation.KIOSK-001');
 
-      expect(result).toEqual(activation);
+      expect(result).toEqual(mockActivation);
       expect(prisma.hardwareActivation.findUnique).toHaveBeenCalledWith({
         where: { hardwareId: 'KIOSK-001' },
       });
-      expect(redis.setChannelState).toHaveBeenCalledWith('activation.KIOSK-001', activation);
+      expect(redis.setChannelState).toHaveBeenCalledWith('activation.KIOSK-001', mockActivation);
     });
 
     it('should fall back to DB when cache miss (take_picture)', async () => {
       redis.getChannelState.mockResolvedValue(null);
-      const takePicture: TakePicture = {
-        id: 'TP-001',
-        hardwareId: 'KIOSK-001',
-        status: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      prisma.takePicture.findFirst.mockResolvedValue(takePicture);
+      prisma.takePicture.findFirst.mockResolvedValue(mockTakePicture);
 
       const result = await service.getChannelData('take_picture.KIOSK-001');
 
-      expect(result).toEqual(takePicture);
+      expect(result).toEqual(mockTakePicture);
       expect(prisma.takePicture.findFirst).toHaveBeenCalledWith({
         where: { hardwareId: 'KIOSK-001' },
         orderBy: { createdAt: 'desc' },
       });
-      expect(redis.setChannelState).toHaveBeenCalledWith('take_picture.KIOSK-001', takePicture);
+      expect(redis.setChannelState).toHaveBeenCalledWith('take_picture.KIOSK-001', mockTakePicture);
     });
 
     it('should throw BadRequestException on invalid channel format', async () => {

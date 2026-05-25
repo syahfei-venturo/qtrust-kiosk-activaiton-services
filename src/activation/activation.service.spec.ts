@@ -5,6 +5,31 @@ import { RedisService } from '../redis/redis.service';
 import { NotFoundException } from '@nestjs/common';
 import { HardwareActivation } from '@prisma/client';
 
+const mockActivation: HardwareActivation = {
+  id: 'id-001',
+  hardwareId: 'KIOSK-001',
+  activationId: 'ACT-001',
+  status: 'Pending',
+  deviceName: 'Kiosk 001',
+  groupName: 'Group 1',
+  groupId: 1,
+  dealerName: 'Dealer 1',
+  qrcode: null,
+  serialNumber: null,
+  loginDate: null,
+  defaultContentType: null,
+  defaultContentUrl: null,
+  linkUrl: null,
+  location: null,
+  region: null,
+  kdDealer: null,
+  lat: null,
+  lng: null,
+  spesification: null,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  updatedAt: new Date('2026-01-01T00:00:00Z'),
+};
+
 describe('ActivationService', () => {
   let service: ActivationService;
   let prisma: {
@@ -36,29 +61,15 @@ describe('ActivationService', () => {
   });
 
   describe('updateActivation', () => {
-    it('should update record and broadcast', async () => {
-      const existing: HardwareActivation = {
-        id: 'id-001',
-        hardwareId: 'KIOSK-001',
-        activationId: 'ACT-001',
-        status: 'Pending',
-        deviceName: 'Kiosk 001',
-        groupName: 'Group 1',
-        groupId: 1,
-        dealerName: 'Dealer 1',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
+    it('should update record and broadcast snake_case data', async () => {
       const updated: HardwareActivation = {
-        ...existing,
+        ...mockActivation,
         status: 'Activated',
         deviceName: 'Updated Kiosk',
-        updatedAt: new Date(),
-        activationId: 'ACT-001',
+        updatedAt: new Date('2026-01-02T00:00:00Z'),
       };
 
-      prisma.hardwareActivation.findUnique.mockResolvedValue(existing);
+      prisma.hardwareActivation.findUnique.mockResolvedValue(mockActivation);
       prisma.hardwareActivation.update.mockResolvedValue(updated);
 
       const result = await service.updateActivation('KIOSK-001', {
@@ -66,11 +77,23 @@ describe('ActivationService', () => {
         device_name: 'Updated Kiosk',
       });
 
-      expect(result.statusCode).toBe(200);
-      expect(result.data.status).toBe('Activated');
-      expect(result.data.deviceName).toBe('Updated Kiosk');
-      expect(redis.setChannelState).toHaveBeenCalledWith('activation.KIOSK-001', updated);
-      expect(redis.publish).toHaveBeenCalledWith('activation.KIOSK-001', updated);
+      // Response uses snake_case (no statusCode wrapper — interceptor adds envelope)
+      expect(result.hardware_id).toBe('KIOSK-001');
+      expect(result.status).toBe('Activated');
+      expect(result.device_name).toBe('Updated Kiosk');
+      expect(result.activation_id).toBe('ACT-001');
+      expect(result.created_at).toBe('2026-01-01T00:00:00.000Z');
+      expect(result.updated_at).toBe('2026-01-02T00:00:00.000Z');
+
+      // Redis receives serialized snake_case data
+      expect(redis.setChannelState).toHaveBeenCalledWith(
+        'activation.KIOSK-001',
+        expect.objectContaining({ hardware_id: 'KIOSK-001' }),
+      );
+      expect(redis.publish).toHaveBeenCalledWith(
+        'activation.KIOSK-001',
+        expect.objectContaining({ hardware_id: 'KIOSK-001' }),
+      );
     });
 
     it('should throw 404 for unknown hardware', async () => {
