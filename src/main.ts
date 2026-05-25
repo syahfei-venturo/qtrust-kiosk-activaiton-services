@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { AppModule } from './app.module';
+
+const logger = new Logger('Bootstrap');
 
 class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
@@ -41,7 +43,7 @@ async function bootstrap() {
     );
     app.useWebSocketAdapter(redisAdapter);
   } catch (error) {
-    console.error('Failed to initialize Redis adapter, falling back to default adapter', error);
+    logger.warn('Failed to initialize Redis adapter, falling back to default adapter', error);
   }
 
   app.useGlobalPipes(
@@ -58,7 +60,7 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT', 3001);
   await app.listen(port);
-  console.log(`Kiosk Socket Service running on port ${port}`);
+  logger.log(`Kiosk Socket Service running on port ${port}`);
 }
 
 bootstrap();
