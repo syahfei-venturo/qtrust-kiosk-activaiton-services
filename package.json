@@ -65,7 +65,7 @@
     "typescript": "^5.0.0"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node dist/prisma/seed.js"
   },
   "jest": {
     "moduleFileExtensions": [

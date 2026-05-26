@@ -14,7 +14,8 @@ RUN npx prisma generate
 # Copy source and build
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
-RUN npm run build && ls -la dist/src/ && test -f dist/src/main.js
+RUN npm run build && ls -la dist/src/ && test -f dist/src/main.js \
+    && npx tsc prisma/seed.ts --outDir dist/prisma --esModuleInterop --resolveJsonModule --skipLibCheck
 
 # ---- Production Dependencies ----
 FROM node:20-alpine AS deps
