@@ -24,7 +24,6 @@ pipeline {
             agent {
                 dockerContainer {
                     image 'node:20-alpine'
-                    args '-v $HOME/.npm:/root/.npm'
                 }
             }
             steps {
