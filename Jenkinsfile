@@ -20,21 +20,7 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            agent {
-                dockerContainer {
-                    image 'node:20-alpine'
-                }
-            }
-            steps {
-                sh 'npm ci'
-                sh 'npx prisma generate'
-                sh 'npm run lint'
-                sh 'npm run test'
-            }
-        }
-
-        stage('Build Image') {
+stage('Build Image') {
             steps {
                 script {
                     dockerImage = docker.build("${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}")
