@@ -31,7 +31,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 # ---- Production Stage ----
 FROM node:20-alpine AS production
 
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init openssl
 
 WORKDIR /app
 
@@ -48,6 +48,9 @@ COPY --from=builder /app/dist ./dist
 # Entrypoint script
 COPY --chown=node:node docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
+
+# Fix permissions for node user (prisma needs write access to engines dir)
+RUN chown -R node:node /app
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
