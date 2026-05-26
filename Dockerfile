@@ -14,7 +14,7 @@ RUN npx prisma generate
 # Copy source and build
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
-RUN npm run build && ls -la dist/ && test -f dist/main.js
+RUN npm run build && ls -la dist/src/ && test -f dist/src/main.js
 
 # ---- Production Dependencies ----
 FROM node:20-alpine AS deps
