@@ -10,7 +10,11 @@ export class WsExceptionFilter extends BaseWsExceptionFilter {
     const client = host.switchToWs().getClient<SocketWithUser>();
 
     if (exception instanceof WsException) {
-      client.emit('error', exception.getError());
+      const error = exception.getError();
+      this.logger.warn(
+        `WsException for client ${client.id}: ${JSON.stringify(error)}`,
+      );
+      client.emit('error', error);
       return;
     }
 
