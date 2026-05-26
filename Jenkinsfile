@@ -39,6 +39,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh "docker compose up -d kiosk-socket"
+                sh "sleep 5 && docker exec kiosk-socket-service npx prisma db seed"
             }
         }
     }
