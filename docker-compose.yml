@@ -1,0 +1,15 @@
+services:
+  kiosk-socket:
+    image: kiosk-socket-service:latest
+    container_name: kiosk-socket-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    networks:
+      - backend-mino-redist_default
+
+networks:
+  backend-mino-redist_default:
+    external: true

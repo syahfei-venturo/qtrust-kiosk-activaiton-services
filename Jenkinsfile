@@ -25,9 +25,20 @@ pipeline {
             }
         }
 
+        stage('Create DB') {
+            steps {
+                sh """
+                    docker exec -i backend-mino-redist-db-1 psql -U myuser -d mydatabase -c \
+                        "SELECT 1 FROM pg_database WHERE datname = 'kiosk_socket'" | grep -q 1 || \
+                    docker exec -i backend-mino-redist-db-1 psql -U myuser -d mydatabase -c \
+                        "CREATE DATABASE kiosk_socket"
+                """
+            }
+        }
+
         stage('Deploy') {
             steps {
-                sh "docker compose -f /opt/kiosk/docker-compose.yml up -d kiosk-socket"
+                sh "docker compose up -d kiosk-socket"
             }
         }
     }
