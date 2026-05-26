@@ -20,11 +20,9 @@ pipeline {
             }
         }
 
-stage('Build Image') {
+        stage('Build Image') {
             steps {
-                script {
-                    dockerImage = docker.build("${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}")
-                }
+                sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
 
@@ -38,11 +36,15 @@ stage('Build Image') {
                 }
             }
             steps {
-                script {
-                    docker.withRegistry("https://${REGISTRY}", 'docker-registry-credentials') {
-                        dockerImage.push()
-                        dockerImage.push("${env.BRANCH_NAME}-latest")
-                    }
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-registry-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh "echo \$DOCKER_PASS | docker login ${REGISTRY} -u \$DOCKER_USER --password-stdin"
+                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}-latest"
+                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}-latest"
                 }
             }
         }
@@ -87,6 +89,7 @@ stage('Build Image') {
             echo "Build succeeded: ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         cleanup {
+            sh "docker logout ${REGISTRY} || true"
             cleanWs()
         }
     }
