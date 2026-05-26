@@ -56,13 +56,13 @@ export class KioskService {
     const { type, hardwareId } = parseChannel(channel);
 
     if (type === 'activation') {
-      // Single query — also serves as existence check
-      const activation = await this.prisma.hardwareActivation.findUnique({
+      // Upsert: auto-register hardware on first subscribe (kiosk self-registration)
+      const activation = await this.prisma.hardwareActivation.upsert({
         where: { hardwareId },
+        update: {}, // no-op if already exists
+        create: { hardwareId, status: 'Pending' },
       });
-      if (!activation) {
-        throw new NotFoundException(`Hardware ${hardwareId} not found`);
-      }
+      this.logger.log(`Hardware ${hardwareId} subscribe — status: ${activation.status}`);
       const serialized = serializeActivation(activation);
       await this.redis.setChannelState(channel, serialized);
       return serialized;
