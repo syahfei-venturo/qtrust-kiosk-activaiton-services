@@ -13,10 +13,16 @@ import { WsJwtGuard } from './guards/ws-jwt.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN', '24h') },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable must be configured');
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN', '24h') },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

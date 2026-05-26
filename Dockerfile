@@ -24,9 +24,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# Prisma CLI needed for migrate deploy at runtime
+# Copy prisma schema for runtime migrate, reuse generated client from builder
 COPY prisma ./prisma
-RUN npx prisma generate
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # ---- Production Stage ----
 FROM node:20-alpine AS production

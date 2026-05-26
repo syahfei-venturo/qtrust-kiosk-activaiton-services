@@ -3,12 +3,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { io, Socket } from 'socket.io-client';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { RedisService } from '../src/redis/redis.service';
 
 describe('Full Flow (e2e)', () => {
   let app: INestApplication;
   let kioskSocket: Socket;
   let kioskToken: string;
   let techToken: string;
+  let adminToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -18,21 +20,35 @@ describe('Full Flow (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
     await app.init();
+
+    // Flush stale channel cache
+    const redis = app.get(RedisService);
+    const client = redis.getClient();
+    const keys = await client.keys('channel:*');
+    if (keys.length > 0) {
+      await client.del(...keys);
+    }
+
     await app.listen(0);
 
     const address = app.getHttpServer().address();
     const port = address.port;
 
-    // Login both users
+    // Login all users
     const kioskLogin = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'cbm_kiosk@qtrust.id', password: 'kiosk123' });
-    kioskToken = kioskLogin.body.access_token;
+    kioskToken = kioskLogin.body.token;
 
     const techLogin = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'technician@qtrust.id', password: 'tech123' });
-    techToken = techLogin.body.access_token;
+      .send({ email: 'technician@qtrust.id', password: 'tech1234' });
+    techToken = techLogin.body.token;
+
+    const adminLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@qtrust.id', password: 'admin123' });
+    adminToken = adminLogin.body.token;
 
     // Kiosk connects via Socket.IO
     kioskSocket = io(`http://localhost:${port}/kiosk`, {
@@ -53,11 +69,11 @@ describe('Full Flow (e2e)', () => {
       kioskSocket.emit('subscribe', { channel: 'take_picture.KIOSK-002' }, () => {
         let eventReceived = false;
 
-        kioskSocket.on('event', (payload) => {
-          if (payload.channel === 'take_picture.KIOSK-002' && !eventReceived) {
+        kioskSocket.on('event', (channel: string, data: any, timestamp: string) => {
+          if (channel === 'take_picture.KIOSK-002' && !eventReceived) {
             eventReceived = true;
-            expect(payload.data.status).toBe(1);
-            expect(payload).toHaveProperty('timestamp');
+            expect(data.status).toBe(1);
+            expect(typeof timestamp).toBe('string');
             kioskSocket.off('event');
             done();
           }
@@ -83,11 +99,11 @@ describe('Full Flow (e2e)', () => {
       kioskSocket.emit('subscribe', { channel: 'activation.KIOSK-003' }, () => {
         let eventReceived = false;
 
-        kioskSocket.on('event', (payload) => {
-          if (payload.channel === 'activation.KIOSK-003' && !eventReceived) {
+        kioskSocket.on('event', (channel: string, data: any, timestamp: string) => {
+          if (channel === 'activation.KIOSK-003' && !eventReceived) {
             eventReceived = true;
-            expect(payload.data.status).toBe('Activated');
-            expect(payload.data.deviceName).toBe('Updated Kiosk');
+            expect(data.status).toBe('Activated');
+            expect(data.device_name).toBe('Updated Kiosk');
             kioskSocket.off('event');
             done();
           }
@@ -97,7 +113,7 @@ describe('Full Flow (e2e)', () => {
         setTimeout(() => {
           request(app.getHttpServer())
             .put('/v1/activation/KIOSK-003')
-            .set('Authorization', `Bearer ${techToken}`)
+            .set('Authorization', `Bearer ${adminToken}`)
             .send({ status: 'Activated', device_name: 'Updated Kiosk' })
             .expect(200)
             .end(() => {});
@@ -118,7 +134,7 @@ describe('Full Flow (e2e)', () => {
       .set('Authorization', `Bearer ${techToken}`)
       .expect(200);
 
-    expect(response.body.data.hardware_id).toBe('KIOSK-001');
-    expect(response.body.data).toHaveProperty('status');
+    expect(response.body.hardware_id).toBe('KIOSK-001');
+    expect(response.body).toHaveProperty('status');
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -10,6 +10,8 @@ import {
 
 @Injectable()
 export class ActivationService {
+  private readonly logger = new Logger(ActivationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -18,7 +20,7 @@ export class ActivationService {
   async updateActivation(
     hardwareId: string,
     dto: UpdateActivationDto,
-  ): Promise<ActivationResponse> {
+  ): Promise<{ data: ActivationResponse; broadcast: boolean }> {
     const existing = await this.prisma.hardwareActivation.findUnique({
       where: { hardwareId },
     });
@@ -38,7 +40,7 @@ export class ActivationService {
         dealerName: dto.dealer_name,
         qrcode: dto.qrcode,
         serialNumber: dto.serial_number,
-        loginDate: dto.login_date,
+        loginDate: dto.login_date ? new Date(dto.login_date) : undefined,
         defaultContentType: dto.default_content_type,
         defaultContentUrl: dto.default_content_url,
         linkUrl: dto.link_url,
@@ -47,15 +49,26 @@ export class ActivationService {
         kdDealer: dto.kd_dealer,
         lat: dto.lat,
         lng: dto.lng,
-        spesification: dto.spesification as Prisma.InputJsonValue ?? undefined,
+        specification: dto.specification
+          ? (dto.specification as Prisma.InputJsonValue)
+          : undefined,
       },
     });
 
     const channel = `activation.${hardwareId}`;
     const serialized = serializeActivation(updated);
-    await this.redis.setChannelState(channel, serialized);
-    await this.redis.publish(channel, serialized);
 
-    return serialized;
+    let broadcast = true;
+    try {
+      await Promise.all([
+        this.redis.setChannelState(channel, serialized),
+        this.redis.publish(channel, serialized),
+      ]);
+    } catch (error) {
+      broadcast = false;
+      this.logger.error(`Redis broadcast failed for ${channel} — clients may have stale data`, error);
+    }
+
+    return { data: serialized, broadcast };
   }
 }

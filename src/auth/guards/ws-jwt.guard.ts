@@ -19,9 +19,10 @@ export class WsJwtGuard implements CanActivate {
       const payload = this.jwtService.verify<JwtPayload>(token);
       client.data = { user: payload };
       return true;
-    } catch (error) {
-      const code = error.name === 'TokenExpiredError' ? 'AUTH_EXPIRED' : 'AUTH_INVALID';
-      const message = error.name === 'TokenExpiredError' ? 'Token has expired' : 'Invalid token';
+    } catch (error: unknown) {
+      const isExpired = error instanceof Error && error.name === 'TokenExpiredError';
+      const code = isExpired ? 'AUTH_EXPIRED' : 'AUTH_INVALID';
+      const message = isExpired ? 'Token has expired' : 'Invalid token';
       throw new WsException({ code, message });
     }
   }

@@ -19,8 +19,8 @@ describe('TechnicianController (e2e)', () => {
 
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'technician@qtrust.id', password: 'tech123' });
-    token = loginRes.body.access_token;
+      .send({ email: 'technician@qtrust.id', password: 'tech1234' });
+    token = loginRes.body.token;
   });
 
   afterAll(async () => {
@@ -35,9 +35,9 @@ describe('TechnicianController (e2e)', () => {
         .send({ status: 1 })
         .expect(201);
 
-      expect(response.body.statusCode).toBe(200);
       expect(response.body.data.hardware_id).toBe('KIOSK-001');
       expect(response.body.data.status).toBe(1);
+      expect(response.body).toHaveProperty('broadcast');
     });
 
     it('should return 404 for unknown hardware', async () => {
@@ -63,9 +63,8 @@ describe('TechnicianController (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(response.body.statusCode).toBe(200);
-      expect(response.body.data.hardware_id).toBe('KIOSK-001');
-      expect(response.body.data).toHaveProperty('status');
+      expect(response.body.hardware_id).toBe('KIOSK-001');
+      expect(response.body).toHaveProperty('status');
     });
   });
 });

@@ -1,21 +1,71 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
+import { AuthService, parseExpiryToSeconds } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
+describe('parseExpiryToSeconds', () => {
+  it('should parse seconds', () => {
+    expect(parseExpiryToSeconds('3600s')).toBe(3600);
+  });
+
+  it('should parse minutes', () => {
+    expect(parseExpiryToSeconds('60m')).toBe(3600);
+  });
+
+  it('should parse hours', () => {
+    expect(parseExpiryToSeconds('24h')).toBe(86400);
+  });
+
+  it('should parse days', () => {
+    expect(parseExpiryToSeconds('7d')).toBe(604800);
+  });
+
+  it('should default to seconds when no unit', () => {
+    expect(parseExpiryToSeconds('3600')).toBe(3600);
+  });
+
+  it('should throw on invalid format', () => {
+    expect(() => parseExpiryToSeconds('invalid')).toThrow('Invalid JWT_EXPIRES_IN format');
+  });
+
+  it('should throw on empty string', () => {
+    expect(() => parseExpiryToSeconds('')).toThrow('Invalid JWT_EXPIRES_IN format');
+  });
+});
+
 describe('AuthService', () => {
   let service: AuthService;
-  let prisma: { user: { findUnique: jest.Mock; update: jest.Mock } };
+  let prisma: {
+    user: { findUnique: jest.Mock; update: jest.Mock };
+    refreshToken: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock; updateMany: jest.Mock; deleteMany: jest.Mock };
+  };
   let jwtService: { sign: jest.Mock };
   let configService: { get: jest.Mock };
 
   beforeEach(async () => {
-    prisma = { user: { findUnique: jest.fn(), update: jest.fn() } };
+    prisma = {
+      user: { findUnique: jest.fn(), update: jest.fn() },
+      refreshToken: {
+        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue({ token: 'mock-refresh-token' }),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+    };
     jwtService = { sign: jest.fn().mockReturnValue('mock-token') };
-    configService = { get: jest.fn().mockReturnValue('24h') };
+    configService = {
+      get: jest.fn().mockImplementation((key: string, defaultValue?: string) => {
+        const values: Record<string, string> = {
+          JWT_EXPIRES_IN: '24h',
+          REFRESH_TOKEN_EXPIRES_IN: '7d',
+        };
+        return values[key] ?? defaultValue;
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -52,6 +102,8 @@ describe('AuthService', () => {
       expect(result.expires_in).toBe(86400);
       expect(result.last_login).toBe('2026-01-01T00:00:00.000Z');
       expect(result.token_expired).toBeDefined();
+      expect(result.refresh_token).toBeDefined();
+      expect(result.refresh_expires_in).toBe(604800);
       expect(jwtService.sign).toHaveBeenCalledWith({
         sub: 'uuid-1',
         email: 'test@test.com',
@@ -60,6 +112,12 @@ describe('AuthService', () => {
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
         data: { lastLogin: expect.any(Date) },
+      });
+      expect(prisma.refreshToken.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'uuid-1',
+          expiresAt: expect.any(Date),
+        }),
       });
     });
 

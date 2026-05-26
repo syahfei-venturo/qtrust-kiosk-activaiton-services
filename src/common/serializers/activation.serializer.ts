@@ -20,6 +20,7 @@ export interface ActivationResponse {
   kd_dealer: string | null;
   lat: number | null;
   lng: number | null;
+  /** Legacy spelling kept for mobile app backward compatibility. */
   spesification: unknown;
   created_at: string;
   updated_at: string;
@@ -37,7 +38,7 @@ export function serializeActivation(activation: HardwareActivation): ActivationR
     dealer_name: activation.dealerName,
     qrcode: activation.qrcode,
     serial_number: activation.serialNumber,
-    login_date: activation.loginDate,
+    login_date: activation.loginDate?.toISOString() ?? null,
     default_content_type: activation.defaultContentType,
     default_content_url: activation.defaultContentUrl,
     link_url: activation.linkUrl,
@@ -46,7 +47,7 @@ export function serializeActivation(activation: HardwareActivation): ActivationR
     kd_dealer: activation.kdDealer,
     lat: activation.lat,
     lng: activation.lng,
-    spesification: activation.spesification,
+    spesification: activation.specification,
     created_at: activation.createdAt.toISOString(),
     updated_at: activation.updatedAt.toISOString(),
   };

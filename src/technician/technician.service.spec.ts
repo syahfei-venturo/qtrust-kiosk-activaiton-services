@@ -25,7 +25,7 @@ const mockActivation: HardwareActivation = {
   kdDealer: null,
   lat: null,
   lng: null,
-  spesification: null,
+  specification: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
@@ -64,8 +64,6 @@ describe('TechnicianService', () => {
 
   describe('triggerTakePicture', () => {
     it('should create record and broadcast', async () => {
-      prisma.hardwareActivation.findUnique.mockResolvedValue(mockActivation);
-
       const takePicture: TakePicture = {
         id: 'TP-001',
         hardwareId: 'KIOSK-001',
@@ -81,16 +79,30 @@ describe('TechnicianService', () => {
         message: 'Take photo now',
       });
 
-      expect(result.hardware_id).toBe('KIOSK-001');
-      expect(result.status).toBe(1);
-      expect(result.message).toBe('Take photo now');
-      expect(result.created_at).toBe('2026-01-01T00:00:00.000Z');
-      expect(redis.setChannelState).toHaveBeenCalledWith('take_picture.KIOSK-001', takePicture);
-      expect(redis.publish).toHaveBeenCalledWith('take_picture.KIOSK-001', takePicture);
+      expect(result.data.hardware_id).toBe('KIOSK-001');
+      expect(result.data.status).toBe(1);
+      expect(result.data.message).toBe('Take photo now');
+      expect(result.data.created_at).toBe('2026-01-01T00:00:00.000Z');
+      expect(result.broadcast).toBe(true);
+      const expectedSerialized = {
+        id: 'TP-001',
+        hardware_id: 'KIOSK-001',
+        status: 1,
+        message: 'Take photo now',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      };
+      expect(redis.setChannelState).toHaveBeenCalledWith('take_picture.KIOSK-001', expectedSerialized);
+      expect(redis.publish).toHaveBeenCalledWith('take_picture.KIOSK-001', expectedSerialized);
     });
 
-    it('should throw 404 for unknown hardware', async () => {
-      prisma.hardwareActivation.findUnique.mockResolvedValue(null);
+    it('should throw 404 when FK constraint fails (hardware not found)', async () => {
+      const { Prisma } = jest.requireActual('@prisma/client');
+      const fkError = new Prisma.PrismaClientKnownRequestError('FK constraint', {
+        code: 'P2003',
+        clientVersion: '5.0.0',
+      });
+      prisma.takePicture.create.mockRejectedValue(fkError);
 
       await expect(service.triggerTakePicture('UNKNOWN-999', { status: 1 }))
         .rejects

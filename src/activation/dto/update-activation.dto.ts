@@ -1,11 +1,17 @@
-import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsNumber, IsDateString, IsObject, ValidateIf, IsIn } from 'class-validator';
+import { AtLeastOneField } from '../../common/validators/at-least-one-field.validator';
 
 export class UpdateActivationDto {
+  /** Dummy property for class-level validation — ensures non-empty update. */
+  @ValidateIf(() => true)
+  @AtLeastOneField()
+  private readonly _validate?: never;
+
   @IsString()
   @IsOptional()
   activation_id?: string;
 
-  @IsString()
+  @IsIn(['Pending', 'Activated', 'Deactivated'])
   @IsOptional()
   status?: string;
 
@@ -33,7 +39,7 @@ export class UpdateActivationDto {
   @IsOptional()
   serial_number?: string;
 
-  @IsString()
+  @IsDateString()
   @IsOptional()
   login_date?: string;
 
@@ -70,5 +76,6 @@ export class UpdateActivationDto {
   lng?: number;
 
   @IsOptional()
-  spesification?: unknown;
+  @IsObject()
+  specification?: Record<string, unknown>;
 }

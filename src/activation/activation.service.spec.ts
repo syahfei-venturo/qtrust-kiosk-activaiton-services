@@ -25,7 +25,7 @@ const mockActivation: HardwareActivation = {
   kdDealer: null,
   lat: null,
   lng: null,
-  spesification: null,
+  specification: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
@@ -78,12 +78,13 @@ describe('ActivationService', () => {
       });
 
       // Response uses snake_case (no statusCode wrapper — interceptor adds envelope)
-      expect(result.hardware_id).toBe('KIOSK-001');
-      expect(result.status).toBe('Activated');
-      expect(result.device_name).toBe('Updated Kiosk');
-      expect(result.activation_id).toBe('ACT-001');
-      expect(result.created_at).toBe('2026-01-01T00:00:00.000Z');
-      expect(result.updated_at).toBe('2026-01-02T00:00:00.000Z');
+      expect(result.data.hardware_id).toBe('KIOSK-001');
+      expect(result.data.status).toBe('Activated');
+      expect(result.data.device_name).toBe('Updated Kiosk');
+      expect(result.data.activation_id).toBe('ACT-001');
+      expect(result.data.created_at).toBe('2026-01-01T00:00:00.000Z');
+      expect(result.data.updated_at).toBe('2026-01-02T00:00:00.000Z');
+      expect(result.broadcast).toBe(true);
 
       // Redis receives serialized snake_case data
       expect(redis.setChannelState).toHaveBeenCalledWith(

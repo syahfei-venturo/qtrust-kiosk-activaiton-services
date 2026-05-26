@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { KioskGateway } from './kiosk.gateway';
+import { KioskController } from './kiosk.controller';
 import { KioskService } from './kiosk.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [AuthModule],
+  controllers: [KioskController],
   providers: [KioskGateway, KioskService],
   exports: [KioskGateway],
 })

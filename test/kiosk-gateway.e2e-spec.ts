@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { io, Socket } from 'socket.io-client';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { RedisService } from '../src/redis/redis.service';
 
 describe('KioskGateway (e2e)', () => {
   let app: INestApplication;
@@ -17,6 +18,15 @@ describe('KioskGateway (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
     await app.init();
+
+    // Flush stale channel cache so getChannelData returns freshly serialized data
+    const redis = app.get(RedisService);
+    const client = redis.getClient();
+    const keys = await client.keys('channel:*');
+    if (keys.length > 0) {
+      await client.del(...keys);
+    }
+
     await app.listen(0);
 
     const address = app.getHttpServer().address();
@@ -25,7 +35,7 @@ describe('KioskGateway (e2e)', () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'cbm_kiosk@qtrust.id', password: 'kiosk123' });
-    token = loginRes.body.access_token;
+    token = loginRes.body.token;
 
     clientSocket = io(`http://localhost:${port}/kiosk`, {
       auth: { token },
@@ -74,7 +84,7 @@ describe('KioskGateway (e2e)', () => {
   it('should subscribe to activation channel and get initial data', (done) => {
     clientSocket.emit('subscribe', { channel: 'activation.KIOSK-001' }, (response: any) => {
       expect(response).toHaveProperty('data');
-      expect(response.data).toHaveProperty('hardwareId', 'KIOSK-001');
+      expect(response.data).toHaveProperty('hardware_id', 'KIOSK-001');
       done();
     });
   });

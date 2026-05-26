@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -6,24 +6,24 @@ const prisma = new PrismaClient();
 async function main() {
   const saltRounds = 10;
 
-  const users = [
+  const users: Array<{ email: string; name: string; password: string; role: Role }> = [
     {
       email: process.env.SEED_KIOSK_EMAIL || 'cbm_kiosk@qtrust.id',
       name: 'CBM Kiosk',
       password: await bcrypt.hash(process.env.SEED_KIOSK_PASSWORD || 'kiosk123', saltRounds),
-      role: 'kiosk',
+      role: Role.kiosk,
     },
     {
       email: process.env.SEED_TECHNICIAN_EMAIL || 'technician@qtrust.id',
       name: 'Technician',
-      password: await bcrypt.hash(process.env.SEED_TECHNICIAN_PASSWORD || 'tech123', saltRounds),
-      role: 'technician',
+      password: await bcrypt.hash(process.env.SEED_TECHNICIAN_PASSWORD || 'tech1234', saltRounds),
+      role: Role.technician,
     },
     {
       email: process.env.SEED_ADMIN_EMAIL || 'admin@qtrust.id',
       name: 'Admin',
       password: await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD || 'admin123', saltRounds),
-      role: 'admin',
+      role: Role.admin,
     },
   ];
 
@@ -45,7 +45,7 @@ async function main() {
       dealerName: 'Dealer Jakarta',
       qrcode: 'QR-KIOSK-001',
       serialNumber: 'SN-001',
-      loginDate: '2026-01-15',
+      loginDate: new Date('2026-01-15'),
       defaultContentType: 'video',
       defaultContentUrl: 'https://cdn.example.com/content/default.mp4',
       linkUrl: 'https://example.com/kiosk/001',
@@ -54,12 +54,12 @@ async function main() {
       kdDealer: 'KD-JKT-001',
       lat: -6.175110,
       lng: 106.865036,
-      spesification: {
-        aspectRatio: '16:9',
-        screenWidth: 1920,
-        screenHeight: 1080,
-        appVersion: '1.0.0',
-        serialNumber: 'SN-001',
+      specification: {
+        aspect_ratio: '16:9',
+        screen_width: 1920,
+        screen_height: 1080,
+        app_version: '1.0.0',
+        serial_number: 'SN-001',
         manufacturer: 'Samsung',
         model: 'Kiosk Pro',
         brand: 'Samsung',
@@ -95,13 +95,18 @@ async function main() {
       create: kiosk,
     });
 
-    await prisma.takePicture.create({
-      data: {
-        hardwareId: kiosk.hardwareId,
-        status: 0,
-        message: null,
-      },
+    const existingPicture = await prisma.takePicture.findFirst({
+      where: { hardwareId: kiosk.hardwareId },
     });
+    if (!existingPicture) {
+      await prisma.takePicture.create({
+        data: {
+          hardwareId: kiosk.hardwareId,
+          status: 0,
+          message: null,
+        },
+      });
+    }
   }
 
   console.log('Seed completed');

@@ -56,7 +56,7 @@ pipeline {
                 script {
                     docker.withRegistry("https://${REGISTRY}", 'docker-registry-credentials') {
                         dockerImage.push()
-                        dockerImage.push('latest')
+                        dockerImage.push("${env.BRANCH_NAME}-latest")
                     }
                 }
             }
